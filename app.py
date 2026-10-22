@@ -731,11 +731,30 @@ with st.sidebar:
                 active_api_key = custom_key
             st.caption("Status: Built-in Smart Engine Active")
 
+    ai_speed = st.radio(
+        "⚡ Mode",
+        ["⚡ Instant Smart Engine (Instantaneous)", "🤖 Deep Gemini Cloud AI (~10s)"],
+        index=0,
+        help="Instant Smart Engine loads tailored schedules immediately in memory without network latency."
+    )
+    use_deep_gemini = "Deep Gemini" in ai_speed
+
     st.markdown("### 🧳 Trip Preferences")
 
     destination_input = st.selectbox(
         "Target Destination",
-        options=["✨ Discover via Recommender (Tab 1)", "Kyoto, Japan", "Amalfi Coast, Italy", "Jaipur & Rajasthan, India", "Swiss Alps (Interlaken & Zermatt), Switzerland", "Custom Destination..."],
+        options=[
+            "✨ Discover via Recommender (Tab 1)",
+            "Kyoto, Japan",
+            "Paris, France",
+            "Amalfi Coast, Italy",
+            "Barcelona, Spain",
+            "Jaipur & Rajasthan, India",
+            "Swiss Alps (Interlaken & Zermatt), Switzerland",
+            "Bali, Indonesia",
+            "Goa, India",
+            "Custom Destination..."
+        ],
         index=1
     )
 
@@ -1067,13 +1086,13 @@ def generate_itinerary_fallback(dest_name: str, duration: int, party: str, budge
             "days": days
         }
 
-def get_itinerary(dest_name: str, duration: int, party: str, budget: str, pace: str, user_interests: List[str], api_key: str):
-    """Wrapper that tries Gemini first if key available, then gracefully falls back."""
-    if api_key and HAS_GENAI:
+def get_itinerary(dest_name: str, duration: int, party: str, budget: str, pace: str, user_interests: List[str], api_key: str, force_gemini: bool = False):
+    """If force_gemini is True and key is available, call Gemini. Otherwise generate instantly in-memory!"""
+    if force_gemini and api_key and HAS_GENAI:
         try:
             return call_gemini_generate_itinerary(dest_name, duration, party, budget, pace, user_interests, api_key)
         except Exception as e:
-            st.warning(f"Note: Gemini Live API returned a notice ({e}). Seamlessly using intelligent fallback engine.")
+            st.warning(f"Note: Gemini Cloud API notice ({e}). Seamlessly served via Instant Engine.")
             return generate_itinerary_fallback(dest_name, duration, party, budget, pace, user_interests)
     else:
         return generate_itinerary_fallback(dest_name, duration, party, budget, pace, user_interests)
@@ -1086,14 +1105,14 @@ if st.session_state.current_itinerary is None:
     )
 
 if generate_btn:
-    with st.spinner(f"Generating personalized {trip_duration}-day itinerary for {selected_destination}..."):
+    with st.spinner(f"Preparing {trip_duration}-day itinerary for {selected_destination}..."):
         new_trip = get_itinerary(
-            selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests, active_api_key
+            selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests, active_api_key, force_gemini=use_deep_gemini
         )
         st.session_state.current_itinerary = new_trip
         save_trip_to_db(new_trip)
         st.session_state.saved_trips = load_trips_from_db()
-        st.toast(f"Generated new itinerary for {selected_destination}!", icon="✈️")
+        st.toast(f"Loaded itinerary for {selected_destination}!", icon="⚡")
         st.rerun()
 
 # -----------------------------------------------------------------------------
@@ -1442,8 +1461,8 @@ with tab2:
     col_btn_gen, col_btn_save = st.columns([3, 1])
     with col_btn_gen:
         if st.button("✨ Regenerate Full Itinerary with Current Preferences", use_container_width=True):
-            with st.spinner("AI is generating optimized district routes and schedules..."):
-                new_trip = get_itinerary(selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests, active_api_key)
+            with st.spinner("Preparing itinerary..."):
+                new_trip = get_itinerary(selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests, active_api_key, force_gemini=use_deep_gemini)
                 st.session_state.current_itinerary = new_trip
                 save_trip_to_db(new_trip)
                 st.session_state.saved_trips = load_trips_from_db()

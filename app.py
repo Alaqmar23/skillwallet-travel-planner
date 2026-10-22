@@ -779,6 +779,9 @@ with st.sidebar:
 
     currency_pref = st.radio("Display Currency", ["USD ($)", "INR (₹)"], horizontal=True)
 
+    st.markdown("---")
+    generate_btn = st.button("🚀 Generate / Update Itinerary", type="primary", use_container_width=True)
+
 # -----------------------------------------------------------------------------
 # 6. SESSION STATE MANAGEMENT
 # -----------------------------------------------------------------------------
@@ -1081,6 +1084,17 @@ if st.session_state.current_itinerary is None:
         "Kyoto, Japan", 3, "Romantic Couple", "Moderate (Comfort)", "Moderate (Balanced)",
         ["Food & Gastronomy", "Architecture & Heritage", "Scenic Photography"]
     )
+
+if generate_btn:
+    with st.spinner(f"Generating personalized {trip_duration}-day itinerary for {selected_destination}..."):
+        new_trip = get_itinerary(
+            selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests, active_api_key
+        )
+        st.session_state.current_itinerary = new_trip
+        save_trip_to_db(new_trip)
+        st.session_state.saved_trips = load_trips_from_db()
+        st.toast(f"Generated new itinerary for {selected_destination}!", icon="✈️")
+        st.rerun()
 
 # -----------------------------------------------------------------------------
 # 8. REPORTLAB PROFESSIONAL PDF TRAVEL GUIDE

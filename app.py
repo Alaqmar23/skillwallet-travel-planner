@@ -1,9 +1,7 @@
 """
-Personalized Travel Itinerary Planner
-Skill Wallet Capstone Project 4 | Platform ID: 6ac33976fb8fc7965cd9236d
-Category: Generative AI | Intelligent SaaS Trip Planning
-Coverage: Epics 1 to 7 (Vibe Coding Scaffolding, Data Schema, Preference Capture,
-         Route Optimization, Dynamic Swaps, Trip Persistence & PDF Export)
+WanderAI - Next-Gen AI Travel Companion & Itinerary Architect
+A production-ready SaaS application for personalized travel curation,
+geographic transit optimization, dynamic activity swapping, and offline travel guides.
 """
 
 import streamlit as st
@@ -27,17 +25,17 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
 # -----------------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & METADATA
+# 1. PAGE CONFIGURATION & BRANDING
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="WanderAI | Personalized Travel Itinerary Planner",
+    page_title="WanderAI — Intelligent Trip Architect",
     page_icon="✈️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # -----------------------------------------------------------------------------
-# 2. CUSTOM CSS STYLING (Wanderlust Premium Glassmorphism)
+# 2. MODERN CONSUMER SAAS STYLING (Wanderlust Premium Glassmorphism)
 # -----------------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -154,21 +152,19 @@ st.markdown("""
         justify-content: space-between;
     }
 
-    /* Verification Badge */
-    .verify-badge {
-        background: rgba(16, 185, 129, 0.12);
-        border: 1px solid rgba(52, 211, 153, 0.35);
-        border-radius: 8px;
-        padding: 10px 14px;
-        color: #6ee7b7;
-        font-size: 0.82rem;
-        margin-bottom: 16px;
+    /* Brand Header Box */
+    .brand-box {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 3. DATABASE INITIALIZATION (SQLite Local Persistence - Epic 2 & 5)
+# 3. DATABASE INITIALIZATION (SQLite Local Persistence)
 # -----------------------------------------------------------------------------
 DB_PATH = "travel_planner.db"
 
@@ -237,7 +233,7 @@ def delete_trip_from_db(trip_id: str):
     conn.close()
 
 # -----------------------------------------------------------------------------
-# 4. CURATED DESTINATION REPOSITORY & GROUND-TRUTH ITINERARIES (Epic 3 & 4)
+# 4. CURATED DESTINATION REPOSITORY & GROUND-TRUTH ITINERARIES
 # -----------------------------------------------------------------------------
 USD_TO_INR = 83.5
 
@@ -693,44 +689,44 @@ CURATED_DESTINATIONS = {
 }
 
 # -----------------------------------------------------------------------------
-# 5. SIDEBAR CONFIGURATION & TRIP PREFERENCES (Epic 3)
+# 5. SIDEBAR: INTUITIVE SAAS CONTROLS & AUTOMATIC API DETECTION
 # -----------------------------------------------------------------------------
+# Check if API Key is already fed into system environment or secrets
+DETECTED_GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
+if not DETECTED_GEMINI_KEY:
+    try:
+        if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
+            DETECTED_GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+
 with st.sidebar:
     st.markdown("""
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-            <span style="font-size: 2rem;">✈️</span>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+            <span style="font-size: 2.2rem;">✈️</span>
             <div>
-                <h2 style="margin: 0; font-size: 1.35rem; font-weight: 800; background: linear-gradient(135deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">WanderAI</h2>
-                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">Personalized Travel Planner</span>
+                <h2 style="margin: 0; font-size: 1.45rem; font-weight: 800; background: linear-gradient(135deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">WanderAI</h2>
+                <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600;">Intelligent Trip Architect</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Verification Tag
-    st.markdown("""
-        <div class="verify-badge">
-            <b>🛡️ Skill Wallet Capstone Project 4</b><br>
-            <span style="font-size: 0.75rem; color: #cbd5e1;">Platform ID: <code>6ac33976fb8fc7965cd9236d</code></span><br>
-            <span style="font-size: 0.72rem; color: #34d399;">● Epics 1 to 7 Verified & Cloud Ready</span>
-        </div>
-    """, unsafe_allow_html=True)
+    # Clean, optional AI Engine Expander
+    with st.expander("⚙️ AI Engine Settings", expanded=False):
+        if DETECTED_GEMINI_KEY:
+            st.success("✅ Gemini API Key detected from environment")
+            active_api_key = DETECTED_GEMINI_KEY
+        else:
+            custom_key = st.text_input(
+                "Optional Gemini API Key",
+                type="password",
+                help="Optional. Leave blank to use WanderAI's built-in intelligent engine with zero setup."
+            )
+            active_api_key = custom_key
 
-    st.markdown("### 🔑 AI Engine Configuration")
-    ai_mode = st.radio(
-        "Engine Selection",
-        ["Demo Mode (Zero-Token AI Intelligence)", "Google Gemini API", "Groq LLM API"],
-        index=0,
-        help="Demo mode provides high-fidelity, instantaneous generation with zero external API dependencies."
-    )
+        engine_status = "Gemini Cloud LLM" if active_api_key else "WanderAI Smart Engine"
+        st.caption(f"Active Model: **{engine_status}**")
 
-    gemini_key = ""
-    groq_key = ""
-    if ai_mode == "Google Gemini API":
-        gemini_key = st.text_input("Enter Gemini API Key", type="password", help="Free tier available on Google AI Studio.")
-    elif ai_mode == "Groq LLM API":
-        groq_key = st.text_input("Enter Groq API Key", type="password", help="Fast inference API key.")
-
-    st.markdown("---")
     st.markdown("### 🧳 Trip Preferences")
 
     destination_input = st.selectbox(
@@ -813,14 +809,12 @@ if st.session_state.current_itinerary is None:
     }
 
 # -----------------------------------------------------------------------------
-# 7. AI ENGINE GENERATION LOGIC (Epic 4 - LLM & Ground-Truth Fallback)
+# 7. AI ENGINE GENERATION LOGIC
 # -----------------------------------------------------------------------------
 def generate_itinerary(dest_name: str, duration: int, party: str, budget: str, pace: str, user_interests: List[str]):
-    # Check if curated template exists
     if dest_name in CURATED_DESTINATIONS:
         curated = CURATED_DESTINATIONS[dest_name]
         days_slice = curated["days"][:duration]
-        # Duplicate or adapt if duration requested is longer
         while len(days_slice) < duration:
             extra_day_idx = len(days_slice) + 1
             days_slice.append({
@@ -897,7 +891,6 @@ def generate_itinerary(dest_name: str, duration: int, party: str, budget: str, p
             "days": days_slice
         }
     else:
-        # Fallback for custom destinations
         days = []
         for i in range(1, duration + 1):
             days.append({
@@ -972,7 +965,7 @@ def generate_itinerary(dest_name: str, duration: int, party: str, budget: str, p
         }
 
 # -----------------------------------------------------------------------------
-# 8. REPORTLAB AUTOMATED PDF GENERATOR (Epic 5)
+# 8. REPORTLAB PROFESSIONAL PDF TRAVEL GUIDE
 # -----------------------------------------------------------------------------
 def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
@@ -987,7 +980,6 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
 
     styles = getSampleStyleSheet()
     
-    # Custom Styles
     title_style = ParagraphStyle(
         'DocTitle',
         parent=styles['Heading1'],
@@ -1011,10 +1003,10 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
         'Heading2Custom',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
-        fontSize=15,
+        fontSize=14,
         leading=18,
-        textColor=colors.HexColor('#0369a1'),
-        spaceBefore=14,
+        textColor=colors.HexColor('#0284c7'),
+        spaceBefore=12,
         spaceAfter=6
     )
 
@@ -1044,21 +1036,21 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
     story.append(Paragraph(
         f"<b>Destination:</b> {trip['destination']} &nbsp;|&nbsp; "
         f"<b>Duration:</b> {trip['duration']} Days &nbsp;|&nbsp; "
-        f"<b>Budget Tier:</b> {trip['budget_tier']} &nbsp;|&nbsp; "
-        f"<b>Pace:</b> {trip['pace']}",
+        f"<b>Travel Party:</b> {trip['travel_party']} &nbsp;|&nbsp; "
+        f"<b>Budget Tier:</b> {trip['budget_tier']}",
         subtitle_style
     ))
     story.append(Spacer(1, 4))
     story.append(Paragraph(
-        f"<b>Skill Wallet Verification Proof:</b> Platform ID: <code>6ac33976fb8fc7965cd9236d</code> &nbsp;|&nbsp; "
-        f"Generated: {trip['created_at']} &nbsp;|&nbsp; Status: Accredited",
-        ParagraphStyle('ProofStyle', fontName='Helvetica-Oblique', fontSize=8, textColor=colors.HexColor('#059669'))
+        f"<b>Trip Reference ID:</b> WNDR-{trip['id'][-8:].upper()} &nbsp;|&nbsp; "
+        f"Generated: {trip['created_at']} &nbsp;|&nbsp; Certified Offline Travel Guide",
+        ParagraphStyle('ProofStyle', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#64748b'))
     ))
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0284c7'), spaceAfter=14))
 
     # Executive Summary Table
-    story.append(Paragraph("1. Executive Trip & Financial Summary", heading2_style))
+    story.append(Paragraph("1. Trip & Financial Summary", heading2_style))
     summary_data = [
         ["Parameter", "Details", "Financial Metric", "Value"],
         ["Target Destination", trip["destination"], "Total Budget (USD)", f"${trip['total_cost_usd']:,}"],
@@ -1084,7 +1076,7 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
     story.append(Spacer(1, 14))
 
     # Day by Day Itinerary
-    story.append(Paragraph("2. Optimized Day-by-Day Itinerary with Geographic Clustering", heading2_style))
+    story.append(Paragraph("2. Optimized Day-by-Day Schedule", heading2_style))
 
     for day in trip["days"]:
         day_header = [
@@ -1106,7 +1098,6 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
         ]))
         story.append(dh_table)
 
-        # Activities for the Day
         act_rows = [["Time Slot", "Activity & Location", "Insider Advice & Tip", "Est. Cost"]]
         for act in day["activities"]:
             act_rows.append([
@@ -1130,9 +1121,8 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
         story.append(act_table)
         story.append(Spacer(1, 10))
 
-    # Emergency Directory & Packing Checklist
     story.append(Spacer(1, 6))
-    story.append(Paragraph("3. Emergency Protocol & Smart Travel Checklist", heading2_style))
+    story.append(Paragraph("3. Emergency Protocol & Packing Guide", heading2_style))
     
     em = trip.get("emergency", {"police": "112", "ambulance": "112", "tourist_helpline": "1363", "embassy": "Consulate"})
     packing_items = ", ".join(trip.get("packing", ["Passport", "Charger", "Walking Shoes"]))
@@ -1152,12 +1142,10 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
     ]))
     story.append(em_table)
 
-    # Footer Notice
     story.append(Spacer(1, 16))
     story.append(Paragraph(
-        "Generated via WanderAI SaaS Platform (Skill Wallet AI Capstone Project 4 - Generative AI | Intelligent SaaS Trip Planning). "
-        "Compliant with NASSCOM FutureSkills Prime evaluation rubrics.",
-        ParagraphStyle('FooterNotice', fontName='Helvetica-Oblique', fontSize=7.5, textColor=colors.HexColor('#64748b'), alignment=1)
+        "Curated with WanderAI — Intelligent Travel Companion & Itinerary Architect. Have a safe and memorable journey!",
+        ParagraphStyle('FooterNotice', fontName='Helvetica-Oblique', fontSize=8, textColor=colors.HexColor('#64748b'), alignment=1)
     ))
 
     doc.build(story)
@@ -1165,7 +1153,7 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
     return buffer.getvalue()
 
 # -----------------------------------------------------------------------------
-# 9. MAIN INTERFACE & TABS (Epics 3, 4, 5, 6, 7)
+# 9. MAIN INTERFACE & TABS (Clean 4 Core Tabs)
 # -----------------------------------------------------------------------------
 # Header Hero Section
 st.markdown("""
@@ -1176,42 +1164,41 @@ st.markdown("""
                 Personalized Travel Itinerary Planner
             </h1>
             <p style="margin: 6px 0 0 0; color: #94a3b8; font-size: 1.02rem;">
-                AI-powered vacation curation with <b>Geographic Clustering</b>, dynamic vibe swaps, real-time budget forecasting & offline PDF export.
+                Intelligent vacation curation with <b>Geographic Clustering</b>, dynamic activity swapping, budget forecasting & offline PDF export.
             </p>
         </div>
         <div style="text-align: right;">
-            <span class="pill pill-blue">Category: Generative AI</span>
-            <span class="pill pill-purple">Platform ID: 6ac33976fb8fc7965cd9236d</span>
-            <span class="pill pill-emerald">Capstone Project 4</span>
+            <span class="pill pill-blue">✨ AI Route Optimization</span>
+            <span class="pill pill-purple">⚡ Transit Clustered</span>
+            <span class="pill pill-emerald">📄 Offline PDF Ready</span>
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Tabs Navigation
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🌍 Tab 1 - Smart Destination Recommender",
-    "📅 Tab 2 - Day-by-Day Optimized Itinerary",
-    "⚡ Tab 3 - Vibe Customization & Dynamic Swap",
-    "💾 Tab 4 - Trip Management & PDF Export",
-    "📋 Tab 5 - Skill Wallet Verification & Rubric"
+# Clean 4-Tab Navigation (No student or project badges!)
+tab1, tab2, tab3, tab4 = st.tabs([
+    "🧭 Explore & Recommend",
+    "📅 Day-by-Day Itinerary",
+    "⚡ Dynamic Vibe & Activity Swap",
+    "💾 My Trips & Offline Travel Guide"
 ])
 
 # =============================================================================
-# TAB 1: SMART DESTINATION RECOMMENDER (Epic 3)
+# TAB 1: EXPLORE & RECOMMEND
 # =============================================================================
 with tab1:
-    st.markdown("### 🧭 Intelligent Destination Recommender")
-    st.markdown("Discover curated vacation destinations mathematically matched to your travel party, budget tier, and preferred vibes.")
+    st.markdown("### 🧭 Discover Curated Destinations")
+    st.markdown("Find vacation destinations mathematically matched to your travel party, budget tier, and preferred vibe.")
 
     col_filter1, col_filter2 = st.columns([3, 1])
     with col_filter1:
-        st.markdown(f"**Current Search Criteria:** Budget: `{budget_tier}` &nbsp;|&nbsp; Party: `{travel_party}` &nbsp;|&nbsp; Pace: `{travel_pace}` &nbsp;|&nbsp; Interests: `{', '.join(interests)}`")
+        st.markdown(f"**Current Criteria:** Budget: `{budget_tier}` &nbsp;|&nbsp; Party: `{travel_party}` &nbsp;|&nbsp; Pace: `{travel_pace}` &nbsp;|&nbsp; Vibes: `{', '.join(interests)}`")
     with col_filter2:
-        if st.button("🔄 Refresh Matches", use_container_width=True):
-            st.toast("Updated destination recommendations based on current preferences!", icon="✨")
+        if st.button("🔄 Refresh Recommendations", use_container_width=True):
+            st.toast("Refreshed matching destinations!", icon="✨")
 
-    st.markdown("#### Top 3 Curated Matches for You:")
+    st.markdown("#### Top Curated Destinations for You:")
 
     rec_cols = st.columns(3)
     dest_keys = list(CURATED_DESTINATIONS.keys())[:3]
@@ -1233,11 +1220,11 @@ with tab1:
                     {dest_info['why_match']}
                 </div>
                 <div style="margin-bottom: 14px;">
-                    <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Signature Highlights:</span><br>
+                    <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Top Highlights:</span><br>
                     {' '.join([f"<span class='pill pill-blue' style='margin-top: 4px;'>{h}</span>" for h in dest_info['highlights'][:3]])}
                 </div>
                 <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; margin-top: 10px;">
-                    <div style="font-size: 0.85rem; color: #94a3b8;">Estimated Daily Cost:</div>
+                    <div style="font-size: 0.85rem; color: #94a3b8;">Estimated Daily Spend:</div>
                     <div style="font-size: 1.25rem; font-weight: 700; color: #f1f5f9;">
                         ${dest_info['base_cost_usd']} <span style="font-size: 0.85rem; color: #34d399; font-weight: 500;">(₹{round(dest_info['base_cost_usd']*USD_TO_INR):,})</span>
                     </div>
@@ -1245,23 +1232,23 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button(f"🚀 Select {d_name.split(',')[0]} & Plan Trip", key=f"btn_sel_{idx}", use_container_width=True):
+            if st.button(f"🚀 Plan Trip to {d_name.split(',')[0]}", key=f"btn_sel_{idx}", use_container_width=True):
                 new_trip = generate_itinerary(
                     d_name, trip_duration, travel_party, budget_tier, travel_pace, interests
                 )
                 st.session_state.current_itinerary = new_trip
                 save_trip_to_db(new_trip)
                 st.session_state.saved_trips = load_trips_from_db()
-                st.success(f"Selected {d_name}! Head over to Tab 2 to view your day-by-day itinerary.")
+                st.success(f"Selected {d_name}! Switch to the 'Day-by-Day Itinerary' tab to explore your schedule.")
 
 # =============================================================================
-# TAB 2: DAY-BY-DAY OPTIMIZED ITINERARY (Epic 4)
+# TAB 2: DAY-BY-DAY ITINERARY
 # =============================================================================
 with tab2:
     current_trip = st.session_state.current_itinerary
 
     if current_trip is None:
-        st.info("No active trip loaded. Generating default itinerary...")
+        st.info("Loading itinerary...")
         current_trip = generate_itinerary(selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests)
         st.session_state.current_itinerary = current_trip
 
@@ -1280,7 +1267,7 @@ with tab2:
         sub_display = f"₹{current_trip['total_cost_inr']:,}" if currency_pref == "USD ($)" else f"${current_trip['total_cost_usd']:,}"
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-title">Total Estimated Budget</div>
+            <div class="metric-title">Estimated Budget</div>
             <div class="metric-value">{val_display}</div>
             <div class="metric-subtitle">{sub_display} • {current_trip['budget_tier']}</div>
         </div>
@@ -1291,49 +1278,49 @@ with tab2:
         <div class="metric-card">
             <div class="metric-title">Transit Time Saved</div>
             <div class="metric-value">~{total_transit_saved} Mins</div>
-            <div class="metric-subtitle">Via Geographic Clustering Engine</div>
+            <div class="metric-subtitle">Via Geographic Clustering</div>
         </div>
         """, unsafe_allow_html=True)
     with kpi4:
         total_walking = sum(d.get("walking_km", 3.5) for d in current_trip["days"])
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-title">Total Active Walking</div>
+            <div class="metric-title">Active Walking</div>
             <div class="metric-value">{round(total_walking, 1)} km</div>
-            <div class="metric-subtitle">Optimized Pedestrian Routes</div>
+            <div class="metric-subtitle">Pedestrian Route Optimized</div>
         </div>
         """, unsafe_allow_html=True)
 
-    # Geographic Clustering Engine Callout
+    # Geographic Clustering Banner
     st.markdown(f"""
     <div class="cluster-banner">
         <div>
-            <span style="font-size: 1.1rem; font-weight: 700; color: #38bdf8;">📍 Geographic Clustering Intelligence Active</span>
+            <span style="font-size: 1.05rem; font-weight: 700; color: #38bdf8;">📍 Geographic Clustering Active</span>
             <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 2px;">
-                Attractions grouped tightly by urban districts to prevent cross-city zigzagging and eliminate commuter fatigue.
+                Activities are clustered by urban district to prevent zigzagging across the city and reduce transit fatigue.
             </div>
         </div>
         <div>
-            <span class="pill pill-emerald">Zero Transit Backtracking</span>
-            <span class="pill pill-blue">Pedestrian Flow Optimized</span>
+            <span class="pill pill-emerald">Optimized Route</span>
+            <span class="pill pill-blue">Zero Backtracking</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     col_btn_gen, col_btn_save = st.columns([3, 1])
     with col_btn_gen:
-        if st.button("✨ Regenerate Full Itinerary with New Preferences", use_container_width=True):
-            with st.spinner("Optimizing route clusters and activity schedules..."):
+        if st.button("✨ Regenerate Full Itinerary with Current Preferences", use_container_width=True):
+            with st.spinner("Optimizing district routes and schedules..."):
                 new_trip = generate_itinerary(selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests)
                 st.session_state.current_itinerary = new_trip
                 save_trip_to_db(new_trip)
                 st.session_state.saved_trips = load_trips_from_db()
                 st.rerun()
     with col_btn_save:
-        if st.button("💾 Save Trip to Database", use_container_width=True):
+        if st.button("💾 Save Trip", use_container_width=True):
             save_trip_to_db(st.session_state.current_itinerary)
             st.session_state.saved_trips = load_trips_from_db()
-            st.success("Trip saved successfully to SQLite database!")
+            st.success("Trip saved successfully to your portfolio!")
 
     # Day-wise Timeline Render
     st.markdown("### 🗺️ Day-by-Day Schedule")
@@ -1366,14 +1353,13 @@ with tab2:
                 </div>
                 """, unsafe_allow_html=True)
 
-    # Budget & Expense Analytics Chart
+    # Budget Analytics Chart
     st.markdown("---")
-    st.markdown("### 📊 Real-Time Financial & Budget Analytics")
+    st.markdown("### 📊 Budget & Expense Breakdown")
 
     col_chart1, col_chart2 = st.columns([3, 2])
 
     with col_chart1:
-        # Cumulative Daily Spending Plot
         day_names = [f"Day {d['day']}" for d in current_trip["days"]]
         day_costs = [sum(a["cost_usd"] for a in d["activities"]) for d in current_trip["days"]]
         cum_costs = [sum(day_costs[:i+1]) for i in range(len(day_costs))]
@@ -1390,7 +1376,7 @@ with tab2:
             textposition="top left"
         ))
         fig_cum.update_layout(
-            title="Cumulative Itinerary Spending Progression ($ USD)",
+            title="Cumulative Itinerary Spending ($ USD)",
             template="plotly_dark",
             paper_bgcolor="rgba(15, 23, 42, 0.4)",
             plot_bgcolor="rgba(15, 23, 42, 0.4)",
@@ -1401,15 +1387,14 @@ with tab2:
         st.plotly_chart(fig_cum, use_container_width=True)
 
     with col_chart2:
-        # Budget Category Breakdown Donut Chart
-        categories = ["Accommodation", "Dining & Gastronomy", "Activities & Entry", "Local Transit & Buffer"]
+        categories = ["Accommodation", "Dining & Food", "Activities & Entry", "Local Transit & Buffer"]
         pcts = [45, 25, 20, 10]
         fig_pie = px.pie(
             values=pcts,
             names=categories,
             hole=0.55,
             color_discrete_sequence=['#38bdf8', '#818cf8', '#c084fc', '#34d399'],
-            title="Expenditure Allocation Ratio"
+            title="Budget Allocation Ratio"
         )
         fig_pie.update_layout(
             template="plotly_dark",
@@ -1421,11 +1406,11 @@ with tab2:
         st.plotly_chart(fig_pie, use_container_width=True)
 
 # =============================================================================
-# TAB 3: VIBE CUSTOMIZATION & DYNAMIC ACTIVITY SWAP (Epic 4)
+# TAB 3: DYNAMIC VIBE & ACTIVITY SWAP
 # =============================================================================
 with tab3:
-    st.markdown("### ⚡ Vibe Customization & Dynamic Activity Swap")
-    st.markdown("Customize your trip in real time! Swap individual slots with curated vibe alternatives or custom AI prompts **without wiping or altering the rest of your multi-day itinerary**.")
+    st.markdown("### ⚡ Dynamic Vibe & Activity Swap")
+    st.markdown("Customize your trip in real time! Swap individual slots with curated vibe alternatives or custom instructions **without affecting the rest of your multi-day schedule**.")
 
     cur_trip = st.session_state.current_itinerary
 
@@ -1455,16 +1440,16 @@ with tab3:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("#### Choose Replacement Strategy:")
+    st.markdown("#### Choose Replacement:")
     swap_mode = st.radio(
         "Replacement Method",
-        ["Curated Vibe Presets (1-Click Swap)", "Custom AI Prompt Instruction"],
+        ["Curated Vibe Presets (1-Click Swap)", "Custom Prompt Instruction"],
         horizontal=True
     )
 
     if swap_mode == "Curated Vibe Presets (1-Click Swap)":
         preset_choice = st.selectbox(
-            "Select Desired Vibe Replacement",
+            "Select Desired Vibe",
             [
                 "🍜 Bustling Street Food Bazaar & Night Market",
                 "🧘 Peaceful Zen Garden & Traditional Tea House",
@@ -1476,12 +1461,11 @@ with tab3:
         )
     else:
         custom_swap_prompt = st.text_input(
-            "Custom AI Swap Prompt",
+            "Custom Swap Prompt",
             placeholder="e.g., Replace this slot with a relaxing sunset rooftop jazz lounge and vegetarian tapas"
         )
 
     if st.button("⚡ Apply Dynamic Slot Swap", type="primary", use_container_width=True):
-        # Generate appropriate replacement
         if swap_mode == "Curated Vibe Presets (1-Click Swap)":
             if "Street Food" in preset_choice:
                 new_act = {
@@ -1550,19 +1534,17 @@ with tab3:
                     "cost_inr": 1340
                 }
         else:
-            # Custom prompt swap
             new_act = {
                 "slot": current_slot["slot"],
-                "title": f"Custom AI Vibe: {custom_swap_prompt[:40]}",
-                "category": "Custom AI",
+                "title": f"Custom Activity: {custom_swap_prompt[:40]}",
+                "category": "Custom",
                 "location": f"{target_day_data['district']} Local Area",
-                "description": f"Tailored activity honoring prompt: '{custom_swap_prompt}'. Personalized route avoiding tourist congestion.",
+                "description": f"Tailored activity honoring request: '{custom_swap_prompt}'. Personalized route avoiding tourist congestion.",
                 "tip": "Ask local staff for hidden recommendations on the day.",
                 "cost_usd": 25,
                 "cost_inr": 2080
             }
 
-        # Replace in-place
         cur_trip["days"][swap_day_num - 1]["activities"][swap_slot_idx] = new_act
 
         # Recalculate totals
@@ -1577,23 +1559,22 @@ with tab3:
         st.rerun()
 
 # =============================================================================
-# TAB 4: TRIP PERSISTENCE & OFFLINE PDF EXPORT (Epic 5)
+# TAB 4: MY TRIPS & OFFLINE TRAVEL GUIDE (PDF EXPORT)
 # =============================================================================
 with tab4:
-    st.markdown("### 💾 Trip Persistence & Automated PDF Travel Guide Export")
-    st.markdown("Save multiple custom vacations, manage your itinerary portfolio, and generate court-admissible / mentor-verifiable **offline PDF travel guides**.")
+    st.markdown("### 💾 Saved Trips & Offline Travel Guide")
+    st.markdown("Manage your trip portfolio and export a clean, beautifully formatted **offline PDF travel guide**.")
 
     col_pdf1, col_pdf2 = st.columns([3, 2])
 
     with col_pdf1:
-        st.markdown("#### 📄 1-Click Automated PDF Travel Guide")
+        st.markdown("#### 📄 1-Click Offline PDF Travel Guide")
         st.markdown("""
-        Generates a comprehensive, beautifully typeset offline PDF document containing:
-        - Executive Trip Summary & Multi-Currency Financials (USD & INR)
-        - Day-by-day Itinerary with Time Slots, Districts, Descriptions & Costs
-        - Destination Emergency Protocol (Police, Ambulance, Embassy, Tourist Helpline)
-        - Smart Destination Packing & Weather Checklist
-        - **Skill Wallet Platform Verification Watermark (`6ac33976fb8fc7965cd9236d`)**
+        Download an offline travel guide ready for your phone or printing:
+        - Executive Trip Summary & Multi-Currency Breakdown (USD & INR)
+        - Day-by-Day Schedule with Time Slots, Districts, and Cost Estimates
+        - Emergency Hotlines (Police, Medical, Tourist Helpline, Embassies)
+        - Curated Destination Packing & Weather Essentials
         """)
 
         active_trip = st.session_state.current_itinerary
@@ -1602,20 +1583,20 @@ with tab4:
             file_name = f"WanderAI_{active_trip['destination'].split(',')[0].replace(' ', '_')}_{active_trip['duration']}Days.pdf"
             
             st.download_button(
-                label=f"📥 Download Complete PDF Travel Guide ({round(len(pdf_bytes)/1024, 1)} KB)",
+                label=f"📥 Download Travel Guide PDF ({round(len(pdf_bytes)/1024, 1)} KB)",
                 data=pdf_bytes,
                 file_name=file_name,
                 mime="application/pdf",
                 type="primary",
                 use_container_width=True
             )
-            st.caption("✨ Ready for offline access on mobile devices or printing for your trip.")
+            st.caption("✨ Fully formatted offline PDF document.")
 
     with col_pdf2:
-        st.markdown("#### 🗄️ Saved Trips Portfolio (SQLite Persistence)")
+        st.markdown("#### 🗄️ Saved Trips Portfolio")
         trips_list = st.session_state.saved_trips
         if not trips_list:
-            st.info("No saved trips in database. Click 'Save Trip to Database' on Tab 2 to store your trips.")
+            st.info("No saved trips yet. Click 'Save Trip' in the Day-by-Day Itinerary tab to store trips.")
         else:
             for s_trip in trips_list:
                 with st.container():
@@ -1639,47 +1620,3 @@ with tab4:
                             delete_trip_from_db(s_trip['id'])
                             st.session_state.saved_trips = load_trips_from_db()
                             st.rerun()
-
-# =============================================================================
-# TAB 5: SKILL WALLET VERIFICATION & RUBRIC (Step 30-35 Alignment)
-# =============================================================================
-with tab5:
-    st.markdown("### 🎓 Skill Wallet & NASSCOM FutureSkills Prime Verification")
-    st.markdown("This application was built in strict adherence to the **Skill Wallet AI Capstone Curriculum**.")
-
-    st.markdown("""
-    <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(52, 211, 153, 0.4); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-        <h4 style="margin: 0 0 10px 0; color: #34d399;">✅ Official Capstone Project 4 Registration Metadata</h4>
-        <table style="width: 100%; font-size: 0.9rem; color: #f1f5f9;">
-            <tr><td><b>Project Title:</b></td><td>Personalized Travel Itinerary Planner</td></tr>
-            <tr><td><b>Category:</b></td><td>Generative AI | Intelligent SaaS Trip Planning</td></tr>
-            <tr><td><b>Platform ID:</b></td><td><code>6ac33976fb8fc7965cd9236d</code></td></tr>
-            <tr><td><b>Accreditation:</b></td><td>NASSCOM FutureSkills Prime & SmartBridge Skill Wallet</td></tr>
-            <tr><td><b>Status:</b></td><td><span class="pill pill-emerald">100% Epics Complete • Production Ready</span></td></tr>
-        </table>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("#### 📋 7-Epic Kanban Completion Matrix:")
-    
-    epics_data = [
-        {"Epic": "Epic 1", "Scope": "Vibe Coding Scaffolding & Setup", "Implementation": "Custom wanderlust glassmorphism theme, responsive layouts, modular state machine", "Status": "Completed (100%)"},
-        {"Epic": "Epic 2", "Scope": "Relational Data Schema & Models", "Implementation": "SQLite trip storage, structured JSON data contracts, curated destination schemas", "Status": "Completed (100%)"},
-        {"Epic": "Epic 3", "Scope": "Preference Capture & Smart Destination Recommender", "Implementation": "Multi-dimensional filter (budget, party, pace, vibes), match percentage scoring", "Status": "Completed (100%)"},
-        {"Epic": "Epic 4", "Scope": "Day-Wise Itinerary & Geographic Clustering Logic", "Implementation": "Sequential time slots, district clustering to reduce transit fatigue, dynamic activity swaps", "Status": "Completed (100%)"},
-        {"Epic": "Epic 5", "Scope": "Trip Persistence & Automated PDF Export", "Implementation": "ReportLab multi-page travel guide generation with verification watermarks and emergency checklists", "Status": "Completed (100%)"},
-        {"Epic": "Epic 6-7", "Scope": "Cloud Deployment Readiness & Zero-Dependency Mode", "Implementation": "Fully self-contained for 1-click deploy to Streamlit Community Cloud without external DB locks", "Status": "Completed (100%)"},
-    ]
-    st.table(pd.DataFrame(epics_data))
-
-    st.markdown("#### 🚀 Instructions for Step 33 & Step 34 Deliverable Submissions:")
-    st.markdown("""
-    1. **Step 33 (GitHub Repository Link):**
-       - Push this workspace to your public GitHub account (`app.py`, `requirements.txt`, `README.md`).
-       - Copy your repository URL (e.g., `https://github.com/your-username/skillwallet-travel-planner`) and paste into Step 33 on the Skill Wallet portal.
-    2. **Step 34 (Live Hosted Demo URL):**
-       - Visit [share.streamlit.io](https://share.streamlit.io), connect your GitHub repo, select `app.py`, and deploy for 100% free in under 60 seconds.
-       - Copy your live URL (e.g., `https://wanderai-travel-planner.streamlit.app`) and paste into Step 34 on Skill Wallet.
-    3. **Step 35 (Claim Accredited Certificate):**
-       - Once Steps 33 & 34 are submitted, navigate to Tab 5 ('Certificate') on Skill Wallet to claim and download your official accredited course completion certificate!
-    """)

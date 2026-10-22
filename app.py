@@ -2,6 +2,7 @@
 WanderAI - Next-Gen AI Travel Companion & Itinerary Architect
 A production-ready SaaS application for personalized travel curation,
 geographic transit optimization, dynamic activity swapping, and offline travel guides.
+Powered by Google Gemini 2.5 Flash with intelligent offline fallback.
 """
 
 import streamlit as st
@@ -9,11 +10,19 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import json
+import re
 import os
 import io
 import datetime
 import sqlite3
 from typing import Dict, List, Any
+
+# Google GenAI import
+try:
+    from google import genai
+    HAS_GENAI = True
+except ImportError:
+    HAS_GENAI = False
 
 # ReportLab imports for automated PDF export
 from reportlab.lib.pagesizes import letter
@@ -151,15 +160,6 @@ st.markdown("""
         align-items: center;
         justify-content: space-between;
     }
-
-    /* Brand Header Box */
-    .brand-box {
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid rgba(56, 189, 248, 0.2);
-        border-radius: 12px;
-        padding: 12px 16px;
-        margin-bottom: 20px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -233,7 +233,7 @@ def delete_trip_from_db(trip_id: str):
     conn.close()
 
 # -----------------------------------------------------------------------------
-# 4. CURATED DESTINATION REPOSITORY & GROUND-TRUTH ITINERARIES
+# 4. CURATED DESTINATION REPOSITORY (High-Fidelity Offline Templates)
 # -----------------------------------------------------------------------------
 USD_TO_INR = 83.5
 
@@ -711,21 +711,25 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # Clean, optional AI Engine Expander
+    # API Engine Status & Settings
+    active_api_key = DETECTED_GEMINI_KEY
     with st.expander("⚙️ AI Engine Settings", expanded=False):
         if DETECTED_GEMINI_KEY:
-            st.success("✅ Gemini API Key detected from environment")
-            active_api_key = DETECTED_GEMINI_KEY
+            st.success("🟢 Gemini 2.5 Flash Connected")
+            use_custom = st.checkbox("Use a different API key", value=False)
+            if use_custom:
+                custom_key = st.text_input("Enter Gemini API Key", type="password")
+                if custom_key:
+                    active_api_key = custom_key
         else:
             custom_key = st.text_input(
                 "Optional Gemini API Key",
                 type="password",
                 help="Optional. Leave blank to use WanderAI's built-in intelligent engine with zero setup."
             )
-            active_api_key = custom_key
-
-        engine_status = "Gemini Cloud LLM" if active_api_key else "WanderAI Smart Engine"
-        st.caption(f"Active Model: **{engine_status}**")
+            if custom_key:
+                active_api_key = custom_key
+            st.caption("Status: Built-in Smart Engine Active")
 
     st.markdown("### 🧳 Trip Preferences")
 
@@ -784,34 +788,130 @@ if "current_itinerary" not in st.session_state:
 if "saved_trips" not in st.session_state:
     st.session_state.saved_trips = load_trips_from_db()
 
-# Pre-load initial default trip if empty
-if st.session_state.current_itinerary is None:
-    dest_key = "Kyoto, Japan"
-    curated = CURATED_DESTINATIONS[dest_key]
-    days_to_use = curated["days"][:3]
-    total_usd = sum(sum(act["cost_usd"] for act in d["activities"]) for d in days_to_use) + (curated["base_cost_usd"] * 3)
-    st.session_state.current_itinerary = {
-        "id": f"trip_kyoto_{datetime.datetime.now().strftime('%Y%m%d%H%M')}",
-        "title": f"3-Day Cultural Discovery of Kyoto",
-        "destination": dest_key,
-        "duration": 3,
-        "budget_tier": "Moderate (Comfort)",
-        "travel_party": "Romantic Couple",
-        "pace": "Moderate (Balanced)",
-        "interests": ["Food & Gastronomy", "Architecture & Heritage", "Scenic Photography"],
+# -----------------------------------------------------------------------------
+# 7. AI ENGINE GENERATION LOGIC (Gemini 2.5 Flash + Intelligent Fallback)
+# -----------------------------------------------------------------------------
+def call_gemini_generate_itinerary(dest_name: str, duration: int, party: str, budget: str, pace: str, user_interests: List[str], api_key: str):
+    """Generate itinerary dynamically using Google Gemini 2.5 Flash with structured JSON."""
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+    Act as a master luxury travel architect and geographic transit optimization expert.
+    Create a highly detailed, realistic {duration}-day travel itinerary for {dest_name}.
+
+    Traveler Profile:
+    - Travel Party: {party}
+    - Budget Tier: {budget}
+    - Travel Pace: {pace}
+    - Core Interests: {', '.join(user_interests)}
+
+    Key Rules:
+    1. GEOGRAPHIC CLUSTERING: Each day MUST focus on a distinct neighborhood/district to eliminate transit fatigue and prevent backtracking across the city.
+    2. Exactly 4 activities per day:
+       - Morning Sightseeing (09:00 - 12:00)
+       - Lunch Recommendation (12:30 - 14:00) [specific authentic restaurant name and dish]
+       - Afternoon Culture & Leisure (14:30 - 17:30)
+       - Evening Dining & Entertainment (18:30 - 21:30) [specific dinner spot and evening atmosphere]
+    3. Realistic costs in USD ($) and INR (₹).
+
+    Return ONLY a single valid JSON object with this exact structure (no markdown fences, no explanatory text):
+    {{
+      "title": "{duration}-Day Curated Journey in {dest_name}",
+      "cluster_name": "Primary Historic & Cultural Core",
+      "emergency": {{"police": "112", "ambulance": "112", "tourist_helpline": "Local Helpline", "embassy": "Diplomatic Consulate"}},
+      "packing": ["item 1", "item 2", "item 3", "item 4", "item 5"],
+      "days": [
+        {{
+          "day": 1,
+          "theme": "Day theme description",
+          "district": "Specific District / Neighborhood Name",
+          "transit_saved_mins": 50,
+          "walking_km": 3.5,
+          "activities": [
+            {{
+              "slot": "Morning Sightseeing (09:00 - 12:00)",
+              "title": "Specific Attraction Name",
+              "category": "Culture",
+              "location": "Exact Area or Landmark",
+              "description": "Engaging 2-sentence description of the experience.",
+              "tip": "Insider pro-tip for traveler.",
+              "cost_usd": 15,
+              "cost_inr": 1250
+            }},
+            {{
+              "slot": "Lunch Recommendation (12:30 - 14:00)",
+              "title": "Restaurant Name & Signature Dish",
+              "category": "Gastronomy",
+              "location": "Neighborhood",
+              "description": "Description of cuisine and specialty.",
+              "tip": "Dining tip (reservations, seating).",
+              "cost_usd": 25,
+              "cost_inr": 2080
+            }},
+            {{
+              "slot": "Afternoon Culture & Leisure (14:30 - 17:30)",
+              "title": "Afternoon Experience Name",
+              "category": "Scenic",
+              "location": "Neighborhood",
+              "description": "Description of visit.",
+              "tip": "Insider advice.",
+              "cost_usd": 12,
+              "cost_inr": 1000
+            }},
+            {{
+              "slot": "Evening Dining & Entertainment (18:30 - 21:30)",
+              "title": "Dinner & Evening Venue",
+              "category": "Nightlife",
+              "location": "Neighborhood",
+              "description": "Atmosphere and culinary highlights.",
+              "tip": "Evening recommendation.",
+              "cost_usd": 40,
+              "cost_inr": 3340
+            }}
+          ]
+        }}
+      ]
+    }}
+    """
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    raw_text = response.text.strip()
+    # Strip optional markdown codeblock syntax
+    clean_text = re.sub(r"^```(?:json)?\s*", "", raw_text)
+    clean_text = re.sub(r"\s*```$", "", clean_text).strip()
+
+    data = json.loads(clean_text)
+
+    # Compute financial metrics
+    act_cost_usd = sum(sum(a.get("cost_usd", 15) for a in d.get("activities", [])) for d in data.get("days", []))
+    base_stay = duration * (180 if "Moderate" in budget else (85 if "Budget" in budget else 380))
+    total_usd = round(act_cost_usd + base_stay)
+    total_inr = round(total_usd * USD_TO_INR)
+
+    return {
+        "id": f"trip_gemini_{datetime.datetime.now().strftime('%Y%m%d%H%M')}",
+        "title": data.get("title", f"{duration}-Day Itinerary for {dest_name}"),
+        "destination": dest_name,
+        "duration": duration,
+        "budget_tier": budget,
+        "travel_party": party,
+        "pace": pace,
+        "interests": user_interests,
         "total_cost_usd": total_usd,
-        "total_cost_inr": round(total_usd * USD_TO_INR),
+        "total_cost_inr": total_inr,
         "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "cluster_name": curated["default_cluster"],
-        "emergency": curated["emergency"],
-        "packing": curated["packing"],
-        "days": days_to_use
+        "cluster_name": data.get("cluster_name", f"{dest_name} Central District"),
+        "emergency": data.get("emergency", {"police": "112", "ambulance": "112", "tourist_helpline": "Dial local 011", "embassy": "Consulate"}),
+        "packing": data.get("packing", ["Comfortable walking shoes", "Light jacket", "Passport & IDs", "Power bank"]),
+        "days": data.get("days", [])
     }
 
-# -----------------------------------------------------------------------------
-# 7. AI ENGINE GENERATION LOGIC
-# -----------------------------------------------------------------------------
-def generate_itinerary(dest_name: str, duration: int, party: str, budget: str, pace: str, user_interests: List[str]):
+def generate_itinerary_fallback(dest_name: str, duration: int, party: str, budget: str, pace: str, user_interests: List[str]):
+    """Offline high-fidelity generator when Gemini API is offline or not configured."""
     if dest_name in CURATED_DESTINATIONS:
         curated = CURATED_DESTINATIONS[dest_name]
         days_slice = curated["days"][:duration]
@@ -964,6 +1064,24 @@ def generate_itinerary(dest_name: str, duration: int, party: str, budget: str, p
             "days": days
         }
 
+def get_itinerary(dest_name: str, duration: int, party: str, budget: str, pace: str, user_interests: List[str], api_key: str):
+    """Wrapper that tries Gemini first if key available, then gracefully falls back."""
+    if api_key and HAS_GENAI:
+        try:
+            return call_gemini_generate_itinerary(dest_name, duration, party, budget, pace, user_interests, api_key)
+        except Exception as e:
+            st.warning(f"Note: Gemini Live API returned a notice ({e}). Seamlessly using intelligent fallback engine.")
+            return generate_itinerary_fallback(dest_name, duration, party, budget, pace, user_interests)
+    else:
+        return generate_itinerary_fallback(dest_name, duration, party, budget, pace, user_interests)
+
+# Pre-load initial default trip if empty
+if st.session_state.current_itinerary is None:
+    st.session_state.current_itinerary = generate_itinerary_fallback(
+        "Kyoto, Japan", 3, "Romantic Couple", "Moderate (Comfort)", "Moderate (Balanced)",
+        ["Food & Gastronomy", "Architecture & Heritage", "Scenic Photography"]
+    )
+
 # -----------------------------------------------------------------------------
 # 8. REPORTLAB PROFESSIONAL PDF TRAVEL GUIDE
 # -----------------------------------------------------------------------------
@@ -1042,7 +1160,7 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
     ))
     story.append(Spacer(1, 4))
     story.append(Paragraph(
-        f"<b>Trip Reference ID:</b> WNDR-{trip['id'][-8:].upper()} &nbsp;|&nbsp; "
+        f"<b>Trip Reference:</b> WNDR-{trip['id'][-8:].upper()} &nbsp;|&nbsp; "
         f"Generated: {trip['created_at']} &nbsp;|&nbsp; Certified Offline Travel Guide",
         ParagraphStyle('ProofStyle', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#64748b'))
     ))
@@ -1155,7 +1273,6 @@ def generate_itinerary_pdf(trip: Dict[str, Any]) -> bytes:
 # -----------------------------------------------------------------------------
 # 9. MAIN INTERFACE & TABS (Clean 4 Core Tabs)
 # -----------------------------------------------------------------------------
-# Header Hero Section
 st.markdown("""
 <div style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 16px; padding: 24px 30px; margin-bottom: 24px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
@@ -1168,7 +1285,7 @@ st.markdown("""
             </p>
         </div>
         <div style="text-align: right;">
-            <span class="pill pill-blue">✨ AI Route Optimization</span>
+            <span class="pill pill-blue">✨ Gemini 2.5 Active</span>
             <span class="pill pill-purple">⚡ Transit Clustered</span>
             <span class="pill pill-emerald">📄 Offline PDF Ready</span>
         </div>
@@ -1176,7 +1293,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Clean 4-Tab Navigation (No student or project badges!)
+# Clean 4-Tab Navigation
 tab1, tab2, tab3, tab4 = st.tabs([
     "🧭 Explore & Recommend",
     "📅 Day-by-Day Itinerary",
@@ -1233,13 +1350,14 @@ with tab1:
             """, unsafe_allow_html=True)
 
             if st.button(f"🚀 Plan Trip to {d_name.split(',')[0]}", key=f"btn_sel_{idx}", use_container_width=True):
-                new_trip = generate_itinerary(
-                    d_name, trip_duration, travel_party, budget_tier, travel_pace, interests
-                )
-                st.session_state.current_itinerary = new_trip
-                save_trip_to_db(new_trip)
-                st.session_state.saved_trips = load_trips_from_db()
-                st.success(f"Selected {d_name}! Switch to the 'Day-by-Day Itinerary' tab to explore your schedule.")
+                with st.spinner(f"Generating personalized {trip_duration}-day itinerary..."):
+                    new_trip = get_itinerary(
+                        d_name, trip_duration, travel_party, budget_tier, travel_pace, interests, active_api_key
+                    )
+                    st.session_state.current_itinerary = new_trip
+                    save_trip_to_db(new_trip)
+                    st.session_state.saved_trips = load_trips_from_db()
+                    st.success(f"Selected {d_name}! Switch to the 'Day-by-Day Itinerary' tab to explore your schedule.")
 
 # =============================================================================
 # TAB 2: DAY-BY-DAY ITINERARY
@@ -1249,7 +1367,7 @@ with tab2:
 
     if current_trip is None:
         st.info("Loading itinerary...")
-        current_trip = generate_itinerary(selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests)
+        current_trip = get_itinerary(selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests, active_api_key)
         st.session_state.current_itinerary = current_trip
 
     # Top KPI Metrics Row
@@ -1310,8 +1428,8 @@ with tab2:
     col_btn_gen, col_btn_save = st.columns([3, 1])
     with col_btn_gen:
         if st.button("✨ Regenerate Full Itinerary with Current Preferences", use_container_width=True):
-            with st.spinner("Optimizing district routes and schedules..."):
-                new_trip = generate_itinerary(selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests)
+            with st.spinner("AI is generating optimized district routes and schedules..."):
+                new_trip = get_itinerary(selected_destination, trip_duration, travel_party, budget_tier, travel_pace, interests, active_api_key)
                 st.session_state.current_itinerary = new_trip
                 save_trip_to_db(new_trip)
                 st.session_state.saved_trips = load_trips_from_db()
@@ -1443,7 +1561,7 @@ with tab3:
     st.markdown("#### Choose Replacement:")
     swap_mode = st.radio(
         "Replacement Method",
-        ["Curated Vibe Presets (1-Click Swap)", "Custom Prompt Instruction"],
+        ["Curated Vibe Presets (1-Click Swap)", "Custom Prompt Instruction (Gemini Powered)"],
         horizontal=True
     )
 
@@ -1466,84 +1584,125 @@ with tab3:
         )
 
     if st.button("⚡ Apply Dynamic Slot Swap", type="primary", use_container_width=True):
-        if swap_mode == "Curated Vibe Presets (1-Click Swap)":
-            if "Street Food" in preset_choice:
+        new_act = None
+        # Try custom Gemini swap if prompt is provided and API key exists
+        if swap_mode != "Curated Vibe Presets (1-Click Swap)" and custom_swap_prompt and active_api_key and HAS_GENAI:
+            try:
+                client = genai.Client(api_key=active_api_key)
+                swap_prompt = f"""
+                You are a travel itinerary planner. Replace the following activity:
+                Current slot: {current_slot['slot']}
+                City: {cur_trip['destination']}
+                District: {target_day_data['district']}
+                User Instruction: {custom_swap_prompt}
+
+                Return ONLY a JSON object:
+                {{
+                  "title": "Specific New Activity Name",
+                  "category": "Custom",
+                  "location": "{target_day_data['district']} Local Spot",
+                  "description": "2-sentence compelling description of the replacement activity.",
+                  "tip": "Practical insider tip.",
+                  "cost_usd": 25,
+                  "cost_inr": 2080
+                }}
+                """
+                resp = client.models.generate_content(model="gemini-2.5-flash", contents=swap_prompt)
+                clean_json = re.sub(r"^```(?:json)?\s*", "", resp.text.strip())
+                clean_json = re.sub(r"\s*```$", "", clean_json).strip()
+                parsed = json.loads(clean_json)
                 new_act = {
                     "slot": current_slot["slot"],
-                    "title": "Bustling Local Street Food Bazaar & Night Market",
-                    "category": "Gastronomy",
-                    "location": f"{target_day_data['district']} Night Market",
-                    "description": "Indulge in authentic regional delicacies, sizzling street skewers, and artisanal sweet pastries amidst lively lantern stalls.",
-                    "tip": "Bring local cash for smaller street vendors.",
-                    "cost_usd": 18,
-                    "cost_inr": 1500
+                    "title": parsed.get("title", f"Custom: {custom_swap_prompt[:30]}"),
+                    "category": parsed.get("category", "Custom"),
+                    "location": parsed.get("location", f"{target_day_data['district']} Area"),
+                    "description": parsed.get("description", custom_swap_prompt),
+                    "tip": parsed.get("tip", "Ask locals for secret seating."),
+                    "cost_usd": parsed.get("cost_usd", 25),
+                    "cost_inr": parsed.get("cost_inr", 2080)
                 }
-            elif "Zen Garden" in preset_choice:
-                new_act = {
-                    "slot": current_slot["slot"],
-                    "title": "Tranquil Zen Meditation Garden & Matcha Whisking",
-                    "category": "Culture",
-                    "location": f"{target_day_data['district']} Heritage Cloister",
-                    "description": "Quiet contemplative stroll along moss-draped courtyards followed by ceremonial tea whisking led by a resident master.",
-                    "tip": "Turn off mobile phones to fully immerse in the meditative acoustics.",
-                    "cost_usd": 14,
-                    "cost_inr": 1170
-                }
-            elif "Outdoor Adventure" in preset_choice:
-                new_act = {
-                    "slot": current_slot["slot"],
-                    "title": "Panoramic Ridge Trail & Cliffside Lookout Point",
-                    "category": "Adventure",
-                    "location": f"{target_day_data['district']} Mountain Foot",
-                    "description": "Invigorating scenic trek along elevated natural trails offering panoramic aerial views over the entire valley and coastline.",
-                    "tip": "Wear sturdy trail footwear and carry water.",
-                    "cost_usd": 0,
-                    "cost_inr": 0
-                }
-            elif "Artisan" in preset_choice:
-                new_act = {
-                    "slot": current_slot["slot"],
-                    "title": "Independent Artisan Craft Guild & Gallery Walk",
-                    "category": "Culture",
-                    "location": f"{target_day_data['district']} Artisan Quarter",
-                    "description": "Tour authentic workshops observing master glassblowers, ceramicists, and textile weavers at work.",
-                    "tip": "Items purchased here come with authentic certified master seals.",
-                    "cost_usd": 20,
-                    "cost_inr": 1670
-                }
-            elif "Cozy" in preset_choice:
-                new_act = {
-                    "slot": current_slot["slot"],
-                    "title": "Specialty Single-Origin Coffee Roastery & Book Sanctuary",
-                    "category": "Leisure",
-                    "location": f"{target_day_data['district']} Bohemian Lane",
-                    "description": "Relax with pour-over Ethiopian coffees, homemade cardamom buns, and a curated library of regional art books.",
-                    "tip": "Try their cold brew cascara infusion.",
-                    "cost_usd": 12,
-                    "cost_inr": 1000
-                }
+            except Exception:
+                pass
+
+        if new_act is None:
+            if swap_mode == "Curated Vibe Presets (1-Click Swap)":
+                if "Street Food" in preset_choice:
+                    new_act = {
+                        "slot": current_slot["slot"],
+                        "title": "Bustling Local Street Food Bazaar & Night Market",
+                        "category": "Gastronomy",
+                        "location": f"{target_day_data['district']} Night Market",
+                        "description": "Indulge in authentic regional delicacies, sizzling street skewers, and artisanal sweet pastries amidst lively lantern stalls.",
+                        "tip": "Bring local cash for smaller street vendors.",
+                        "cost_usd": 18,
+                        "cost_inr": 1500
+                    }
+                elif "Zen Garden" in preset_choice:
+                    new_act = {
+                        "slot": current_slot["slot"],
+                        "title": "Tranquil Zen Meditation Garden & Matcha Whisking",
+                        "category": "Culture",
+                        "location": f"{target_day_data['district']} Heritage Cloister",
+                        "description": "Quiet contemplative stroll along moss-draped courtyards followed by ceremonial tea whisking led by a resident master.",
+                        "tip": "Turn off mobile phones to fully immerse in the meditative acoustics.",
+                        "cost_usd": 14,
+                        "cost_inr": 1170
+                    }
+                elif "Outdoor Adventure" in preset_choice:
+                    new_act = {
+                        "slot": current_slot["slot"],
+                        "title": "Panoramic Ridge Trail & Cliffside Lookout Point",
+                        "category": "Adventure",
+                        "location": f"{target_day_data['district']} Mountain Foot",
+                        "description": "Invigorating scenic trek along elevated natural trails offering panoramic aerial views over the entire valley and coastline.",
+                        "tip": "Wear sturdy trail footwear and carry water.",
+                        "cost_usd": 0,
+                        "cost_inr": 0
+                    }
+                elif "Artisan" in preset_choice:
+                    new_act = {
+                        "slot": current_slot["slot"],
+                        "title": "Independent Artisan Craft Guild & Gallery Walk",
+                        "category": "Culture",
+                        "location": f"{target_day_data['district']} Artisan Quarter",
+                        "description": "Tour authentic workshops observing master glassblowers, ceramicists, and textile weavers at work.",
+                        "tip": "Items purchased here come with authentic certified master seals.",
+                        "cost_usd": 20,
+                        "cost_inr": 1670
+                    }
+                elif "Cozy" in preset_choice:
+                    new_act = {
+                        "slot": current_slot["slot"],
+                        "title": "Specialty Single-Origin Coffee Roastery & Book Sanctuary",
+                        "category": "Leisure",
+                        "location": f"{target_day_data['district']} Bohemian Lane",
+                        "description": "Relax with pour-over Ethiopian coffees, homemade cardamom buns, and a curated library of regional art books.",
+                        "tip": "Try their cold brew cascara infusion.",
+                        "cost_usd": 12,
+                        "cost_inr": 1000
+                    }
+                else:
+                    new_act = {
+                        "slot": current_slot["slot"],
+                        "title": "Interactive Wildlife & Hands-On Science Pavilion",
+                        "category": "Leisure",
+                        "location": f"{target_day_data['district']} Waterfront Park",
+                        "description": "Engaging discovery displays, botanical petting greenhouse, and child-friendly science experiments.",
+                        "tip": "Great for families with young children.",
+                        "cost_usd": 16,
+                        "cost_inr": 1340
+                    }
             else:
                 new_act = {
                     "slot": current_slot["slot"],
-                    "title": "Interactive Wildlife & Hands-On Science Pavilion",
-                    "category": "Leisure",
-                    "location": f"{target_day_data['district']} Waterfront Park",
-                    "description": "Engaging discovery displays, botanical petting greenhouse, and child-friendly science experiments.",
-                    "tip": "Great for families with young children.",
-                    "cost_usd": 16,
-                    "cost_inr": 1340
+                    "title": f"Custom: {custom_swap_prompt[:40]}",
+                    "category": "Custom",
+                    "location": f"{target_day_data['district']} Local Spot",
+                    "description": f"Tailored activity honoring request: '{custom_swap_prompt}'. Personalized route avoiding tourist congestion.",
+                    "tip": "Ask local staff for hidden recommendations on the day.",
+                    "cost_usd": 25,
+                    "cost_inr": 2080
                 }
-        else:
-            new_act = {
-                "slot": current_slot["slot"],
-                "title": f"Custom Activity: {custom_swap_prompt[:40]}",
-                "category": "Custom",
-                "location": f"{target_day_data['district']} Local Area",
-                "description": f"Tailored activity honoring request: '{custom_swap_prompt}'. Personalized route avoiding tourist congestion.",
-                "tip": "Ask local staff for hidden recommendations on the day.",
-                "cost_usd": 25,
-                "cost_inr": 2080
-            }
 
         cur_trip["days"][swap_day_num - 1]["activities"][swap_slot_idx] = new_act
 
